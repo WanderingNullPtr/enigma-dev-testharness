@@ -14,11 +14,11 @@ std::vector<TestConfig> GetValidConfigs(bool platforms, bool graphics, bool audi
   
   for (std::string_view p : {"Win32", "SDL"} ) {
     // FIXME: glgetteximage is used in opengl-common and is unsupported by gles. This function currently is required to copy surfaces in some tests
-    for (std::string_view g : {"OpenGL1", "OpenGL3"/*, "OpenGLES2", "OpenGLES3"*/ }) {
+    for (std::string_view g : {"Direct3D9"/*, "OpenGLES2", "OpenGLES3"*/ }) {
       // Invalid combos
       if (g == "OpenGLES2" && p != "SDL") continue;
       if (g == "OpenGLES3" && p != "SDL") continue;
-      for (std::string_view a : {"OpenAL"}) {
+      for (std::string_view a : {"DirectSound","OpenAL"}) {
         for (std::string_view c : {"Precise", "BBox" }) {
           for (std::string_view w : {"None"}) {
             for (std::string_view n : {"None", "BerkeleySockets", "Asynchronous" }) {
@@ -108,7 +108,7 @@ HWND find_window_by_pid(int proc_id) {
 }
 
 class Win32_TestHarness final: public TestHarness {
- public:
+  public:
  
   string get_caption() final {
     return "TEST";
@@ -257,22 +257,25 @@ void gather_coverage(const TestConfig &config) {
 
   char shellpath[MAX_PATH]; 
   GetEnvironmentVariable( "SHELL", shellpath, MAX_PATH);
-
+  //system("ls");
   string lcovArgs =
     string(shellpath)+
     " -l -c"
     " \"lcov"
     " --quiet"
     " --no-external"
-    " --base-directory=ENIGMAsystem/SHELL/"
+    " --base-directory=${PWD}/ENIGMAsystem/SHELL/"  // explicitly defininf PWD
     " --capture "+
     src_dir+" "+
     out_file+" \"";
 
   ProcessData lcovProcess;
+  unsigned long int exitcode;
 
   if(!CreateProcess(shellpath,&lcovArgs[0],NULL,NULL,FALSE,0,NULL,NULL,&lcovProcess.si,&lcovProcess.pi)){
-    ADD_FAILURE() << "Coverage failed to execute for test " << test_num << '!';
+    GetExitCodeProcess(lcovProcess.pi.hProcess,&exitcode);  //Monitor lcov run
+    ADD_FAILURE() << "Coverage failed to execute for test " << test_num << "!\n"
+                  <<"Returned "<<exitcode;
     return;
   }
   if(WaitForSingleObject(lcovProcess.pi.hProcess,INFINITE)==WAIT_FAILED){
@@ -280,7 +283,6 @@ void gather_coverage(const TestConfig &config) {
                   << " somehow failed...";
     return;
   }
-  unsigned long int exitcode;
   if(GetExitCodeProcess(lcovProcess.pi.hProcess,&exitcode)){
     if(exitcode!=259){ //STILL_ACTIVE = 259
         if(exitcode){
@@ -317,6 +319,7 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
   }
 
   ProcessData lacProcess(true);
+  std::cout<<"In Launch and Attach!!\n"; // Test which function runs game
   if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,FALSE,0,NULL,NULL,&lacProcess.si,&lacProcess.pi)){
         std::cerr<<"Failed to launch";
         return nullptr;
@@ -358,7 +361,7 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
   char currentdir[MAX_PATH];
   GetCurrentDirectory(MAX_PATH,currentdir);
   SetCurrentDirectory(game.substr(0, game.find_last_of("\\/")).c_str());
-
+  std::cout<<"In Run to Completion!\n"; // Test which function runs game
   if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,FALSE,0,NULL,NULL,&rtcProcess.si,&rtcProcess.pi)){
     return ErrorCodes::LAUNCH_FAILED;
   }
