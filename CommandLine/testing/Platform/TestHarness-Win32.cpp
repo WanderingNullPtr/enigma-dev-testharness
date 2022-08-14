@@ -14,7 +14,7 @@ std::vector<TestConfig> GetValidConfigs(bool platforms, bool graphics, bool audi
   
   for (std::string_view p : {"Win32", "SDL"} ) {
     // FIXME: glgetteximage is used in opengl-common and is unsupported by gles. This function currently is required to copy surfaces in some tests
-    for (std::string_view g : {"OpenGL1", "OpenGL3"/*, "OpenGLES2", "OpenGLES3"*/ }) {
+    for (std::string_view g : {"OpenGL3","OpenGL1"/*, "OpenGLES2", "OpenGLES3"*/ }) {
       // Invalid combos
       if (g == "OpenGLES2" && p != "SDL") continue;
       if (g == "OpenGLES3" && p != "SDL") continue;
@@ -60,29 +60,29 @@ bool config_supports_lcov(const TestConfig &tc) {
 //support functions
 //string get_window_caption(HWND win_hnd);
 
-struct hwndPid{
+struct hwndPid{                         //Structure to store Process ID and Window handle for use in EnumWindows
   unsigned long pid;
   HWND whandle;
 };
 
-class ProcessData{
+class ProcessData{                      // A class to manage process handle closing for normal and harness attached processes seperately
   bool islac;
   public:
   PROCESS_INFORMATION pi;
   STARTUPINFO si;
-  void meminit(){
-    ZeroMemory( &si, sizeof(si));
+  void meminit(){                       //Initialise STARTUPINFO and PROCESS_INFORMATION
+    ZeroMemory( &si, sizeof(si)); 
     si.cb = sizeof(si);
     ZeroMemory( &pi, sizeof(pi));
     return;
   }
-  ProcessData(bool flag):islac(flag){
+  ProcessData(bool flag):islac(flag){   //Overload for use in Launch and Attach block
     meminit();
   }
   ProcessData(){
     meminit();
   }
-  ~ProcessData(){
+  ~ProcessData(){                       //If islac == true, then the process handles (hProcess, hThread) needs to be closed explicitly by the harness when it gets destroyed
     if(!islac){
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
@@ -90,16 +90,16 @@ class ProcessData{
   }
 };
 
-BOOL CALLBACK EnumWindowCallback(HWND winhnd, LPARAM lparam) {
+BOOL CALLBACK EnumWindowCallback(HWND winhnd, LPARAM lparam) {      //Callback function that checks if the PID we have matches the PID of the Top-level window being enumerated by EnumWindows
     (*(hwndPid *)lparam).whandle=winhnd;
     unsigned long int proc_id;
 
     GetWindowThreadProcessId(winhnd, &proc_id);
     if(proc_id==(*(hwndPid *)lparam).pid) return false;
-    return true;
+    return true;  
 }
 
-HWND find_window_by_pid(int proc_id) {
+HWND find_window_by_pid(int proc_id) {                              //Find the window, if it exists, by the process ID
     hwndPid data;
     data.pid=proc_id;
     data.whandle=0;
@@ -114,7 +114,7 @@ class Win32_TestHarness final: public TestHarness {
     return "TEST";
   }
   void minimize_window() final {
-    ShowWindow(window_handle,SW_MINIMIZE);
+    ShowWindow(window_handle,SW_MINIMIZE);                          // ShowWindow passes window manipulation messages
   }
   void maximize_window() final {
     ShowWindow(window_handle,SW_MAXIMIZE);
@@ -132,7 +132,7 @@ class Win32_TestHarness final: public TestHarness {
     ShowWindow(window_handle,SW_RESTORE);
   }
   void close_window() final {
-    PostMessage( window_handle, WM_CLOSE, (WPARAM)nullptr, (LPARAM)nullptr);
+    PostMessage( window_handle, WM_CLOSE, (WPARAM)nullptr, (LPARAM)nullptr);    // Posts WM_CLOSE to the window and returns without waiting for a reply
   }
   void screen_save(std::string fPath) final {
     RECT clientRect;
@@ -140,10 +140,10 @@ class Win32_TestHarness final: public TestHarness {
     GetClientRect(window_handle,&clientRect);
     clientAbsCoor.x=clientRect.left;
     clientAbsCoor.y=clientRect.top;
-    ClientToScreen(window_handle,&clientAbsCoor);
+    ClientToScreen(window_handle,&clientAbsCoor);  // ClientToScreen converts client space coordinates to screen space coordinates, GetClientRect isnt actually necessary as client origin is always at 0,0
 
-    SetWindowPos(window_handle,HWND_TOPMOST,0,0,0,0,SWP_NOSIZE|SWP_NOMOVE);
-    system(("py ./screenshot.py \""+fPath+"\" "+
+    SetWindowPos(window_handle,HWND_TOPMOST,0,0,0,0,SWP_NOSIZE|SWP_NOMOVE); // Locks the game window as the topmost window, so that other windows do not overlap while capturing
+    system(("py ./screenshot.py \""+fPath+"\" "+                            // Uses python Pillow module to capture and crop only the client area
               to_string(clientAbsCoor.x)+" "+
               to_string(clientAbsCoor.y)+" "+
               to_string(clientAbsCoor.x+clientRect.right)+" "+
@@ -155,7 +155,7 @@ class Win32_TestHarness final: public TestHarness {
   bool game_is_running() final {
     unsigned long int exitcode;
     GetExitCodeProcess(process_info.hProcess,&exitcode);
-    if(exitcode!=259){
+    if(exitcode!=259){                                          // If game process is still running then exitcode stays at 259.
       return_code=exitcode; 
       return false;
     }
@@ -169,7 +169,7 @@ class Win32_TestHarness final: public TestHarness {
       Sleep(50);
     }
     std::cerr << "Warning: game did not close; terminated" << std::endl;
-    TerminateProcess(process_info.hProcess,-1);
+    TerminateProcess(process_info.hProcess,-1);                  // Terminates the game process and makes it return -1.
     return_code = ErrorCodes::TIMED_OUT;
   }
 
@@ -187,7 +187,7 @@ class Win32_TestHarness final: public TestHarness {
       TerminateProcess(process_info.hProcess,-1);
       std::cerr << "Game still running; killed" << std::endl;
     }
-    CloseHandle(process_info.hProcess);
+    CloseHandle(process_info.hProcess);                          // Explicitly close process handles for harness attached launches
     CloseHandle(process_info.hThread);
     gather_coverage(test_config);
   }
@@ -226,15 +226,15 @@ int build_game(const string &game, const TestConfig &tc, const string &out) {
 
   if(!CreateProcess(emake_cmd.c_str(),&args[0],NULL,NULL,FALSE,0,NULL,NULL,&emakeProcess.si,&emakeProcess.pi)) return -1;
 
-  bool ret=(WaitForSingleObject(emakeProcess.pi.hProcess,INFINITE)==(DWORD)0xFFFFFFFF);
+  bool ret=(WaitForSingleObject(emakeProcess.pi.hProcess,INFINITE)==WAIT_FAILED);         // If Waitfor..Object returns WAIT_FAILED, something was wrong, process handle may not exist
   //system("./share_logs.sh");
   if(ret) {
     return -1;
   }
 
   unsigned long int exitcode;
-  GetExitCodeProcess(emakeProcess.pi.hProcess,&exitcode);
-  if(exitcode!=259) {
+  GetExitCodeProcess(emakeProcess.pi.hProcess,&exitcode);                                 // TODO: Add checks to GetExitCodeProcess so that we dont deal with bogus exitcodes
+  if(exitcode!=259) {                                                                     // If exitcode isnt 259 then emake has returned
     return exitcode;
   }
   return -1;
@@ -256,15 +256,14 @@ void gather_coverage(const TestConfig &config) {
   string out_file = "--output-file=coverage_" + to_string(test_num) + ".info";
 
   char shellpath[MAX_PATH]; 
-  GetEnvironmentVariable( "SHELL", shellpath, MAX_PATH);
-  //system("ls");
+  GetEnvironmentVariable( "SHELL", shellpath, MAX_PATH);                            // Get path of mingw-w64 bin/bash
   string lcovArgs =
     string(shellpath)+
     " -l -c"
     " \"lcov"
     " --quiet"
     " --no-external"
-    " --base-directory=$/ENIGMAsystem/SHELL/"  // explicitly defininf PWD
+    " --base-directory=ENIGMAsystem/SHELL/"
     " --capture "+
     src_dir+" "+
     out_file+" \"";
@@ -273,9 +272,7 @@ void gather_coverage(const TestConfig &config) {
   unsigned long int exitcode;
 
   if(!CreateProcess(shellpath,&lcovArgs[0],NULL,NULL,FALSE,0,NULL,NULL,&lcovProcess.si,&lcovProcess.pi)){
-    GetExitCodeProcess(lcovProcess.pi.hProcess,&exitcode);  //Monitor lcov run
-    ADD_FAILURE() << "Coverage failed to execute for test " << test_num << "!\n"
-                  <<"Returned "<<exitcode;
+    ADD_FAILURE() << "Coverage failed to execute for test " << test_num << '!';
     return;
   }
   if(WaitForSingleObject(lcovProcess.pi.hProcess,INFINITE)==WAIT_FAILED){
@@ -283,7 +280,7 @@ void gather_coverage(const TestConfig &config) {
                   << " somehow failed...";
     return;
   }
-  if(GetExitCodeProcess(lcovProcess.pi.hProcess,&exitcode)){
+  if(GetExitCodeProcess(lcovProcess.pi.hProcess,&exitcode)){        // Enter block only if GetExitCodeProcess succeeds in fetching a return
     if(exitcode!=259){ //STILL_ACTIVE = 259
         if(exitcode){
             ADD_FAILURE() << "LCOV run for test " << test_num
@@ -293,9 +290,9 @@ void gather_coverage(const TestConfig &config) {
         std::cout << "Coverage completed successfully for test " << test_num
                   << '.' << std::endl;
     }
-    return;
+    return;              // lcov still running, there was a failure to wait for the process
   }
-  return;
+  return;                // Could not get exit code
 }
 
 }  // namespace
@@ -318,8 +315,8 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     return nullptr;
   }
 
-  ProcessData lacProcess(true);
-  std::cout<<"In Launch and Attach!!\n"; // Test which function runs game
+  ProcessData lacProcess(true);  // Special process, have to close handles manually
+
   if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,FALSE,0,NULL,NULL,&lacProcess.si,&lacProcess.pi)){
         std::cerr<<"Failed to launch";
         return nullptr;
@@ -331,12 +328,13 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     unsigned long int pid;
     GetWindowThreadProcessId(win,&pid);
     if (pid==lacProcess.pi.dwProcessId){
+      //SetWindowPos(win,HWND_TOPMOST,0,0,0,0,SWP_NOSIZE|SWP_NOMOVE);                // TODO: Bring window to front after being created
           return std::unique_ptr<Win32_TestHarness>(
           new Win32_TestHarness(lacProcess.pi, win, tc));
     };
     Sleep(250);
   }
-  std::cerr<<"Did not get window";
+  std::cerr<<"Did not get window";                // check if game failed to launch or did not get a window
   return nullptr;
 }
 
@@ -346,8 +344,9 @@ constexpr int operator"" _million(unsigned long long x) {
 
 int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
   char tmp_path[MAX_PATH];
-  GetEnvironmentVariable("tmp",tmp_path,MAX_PATH);
+  GetEnvironmentVariable("tmp",tmp_path,MAX_PATH);                 //Expand msys2 tmp path
   string out = string(tmp_path)+"/test-game.exe";
+
   if (int retcode = build_game(game, tc, out)) {
     if (retcode == -1) {
       std::cerr << "Failed to run emake." << std::endl;
@@ -359,24 +358,24 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
 
   ProcessData rtcProcess;
   char currentdir[MAX_PATH];
-  GetCurrentDirectory(MAX_PATH,currentdir);
-  SetCurrentDirectory(game.substr(0, game.find_last_of("\\/")).c_str());
-  std::cout<<"In Run to Completion!\n"; // Test which function runs game
+  GetCurrentDirectory(MAX_PATH,currentdir);                        // Store current working directory to switch back to later
+  SetCurrentDirectory(game.substr(0, game.find_last_of("\\/")).c_str());              //Set current directory to the game's dir
+
   if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,FALSE,0,NULL,NULL,&rtcProcess.si,&rtcProcess.pi)){
     return ErrorCodes::LAUNCH_FAILED;
   }
-  SetCurrentDirectory(currentdir);
+  SetCurrentDirectory(currentdir);        // Switch back
 
   for (int i = 0; i < 30000000; i += 12500) {
     unsigned long int wr = WaitForSingleObject(rtcProcess.pi.hProcess,0),exitcode;
     GetExitCodeProcess(rtcProcess.pi.hProcess,&exitcode);
-    if (exitcode!=259) {
-      if (wr != WAIT_FAILED) {
-        if (exitcode==0) {
+    if (exitcode!=259) {                  // 259 denotes that the game has not exited yet
+      if (wr != WAIT_FAILED) {            // If WaitForSingleObject return WAIT_FAILED then there was something wrong
+        if (exitcode == 0) {
           gather_coverage(tc);
           return 0;
         }
-        return ErrorCodes::GAME_CRASHED;
+        return ErrorCodes::GAME_CRASHED;          // TODO: Define crash scenario and handle returning proper codes
       }
       // Ignore the error for now...
       std::cerr << "Warning: ignoring waitpid being dumb." << std::endl;
@@ -384,6 +383,6 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
     Sleep(12);
   }
   std::cerr << "ERROR: game still running after 30 seconds; killed" << std::endl;
-  TerminateProcess(rtcProcess.pi.hProcess,-1); // We're not dicking around with this.
+  TerminateProcess(rtcProcess.pi.hProcess,-1);    // Terminates process and makes it return -1.
   return ErrorCodes::TIMED_OUT;
 }
