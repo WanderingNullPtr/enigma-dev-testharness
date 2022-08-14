@@ -46,10 +46,11 @@ jobs:
 
     - script: |
         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "pacman -Q"
-    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "PWD && ./test-runner.exe --gtest_filter=Game.window_test"
+    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "PWD && ./test-runner.exe"
       displayName: 'Run Test-Runner'
       workingDirectory: C:\enigma-dev
     - task: PublishBuildArtifacts@1
       displayName: 'Push Build Artifacts'
       inputs:
         pathtoPublish: 'C:\enigma-dev\test-harness-out\'
+      condition: always()
