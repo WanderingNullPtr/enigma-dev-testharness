@@ -34,7 +34,7 @@ jobs:
       displayName: Install mingw stuff
     - script: |
         py -m pip install --upgrade Pillow
-        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "cp $MINGW_PREFIX/bin/opengl32.dll $TEMP/ && cp $MINGW_PREFIX/bin/libgallium_wgl.dll $TEMP/"
+  # C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "cp $MINGW_PREFIX/bin/opengl32.dll $TEMP/ && cp $MINGW_PREFIX/bin/libgallium_wgl.dll $TEMP/"
       displayName: 'install pillow and install llvmpipe'
     - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "PWD"
       displayName: 'msys working dir with workingDirectory: c:\enigma-dev'
