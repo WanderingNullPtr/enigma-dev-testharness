@@ -263,7 +263,7 @@ void gather_coverage(const TestConfig &config) {
     " \"lcov"
     " --quiet"
     " --no-external"
-    " --base-directory=C:/enigma-dev/ENIGMAsystem/SHELL/" //fix
+    " --base-directory=ENIGMAsystem/SHELL/" //fix
     " --capture "+
     src_dir+" "+
     out_file+" \"";
