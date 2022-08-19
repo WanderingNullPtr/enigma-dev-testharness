@@ -33,7 +33,7 @@ jobs:
       displayName: Install mingw stuff
     - script: |
         C:\msys64\msys2_shell.cmd -defterm -no-start -c "pacman -U --noconfirm https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-13.0.0-1-any.pkg.tar.zst"
-        C:\msys64\msys2_shell.cmd -defterm -no-start -c "pacman -U --noconfirm https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-mesa-21.3.7-1-any.pkg.tar.zst"
+    - script: C:\msys64\msys2_shell.cmd -defterm -no-start -c "pacman -U --noconfirm https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-mesa-21.3.7-1-any.pkg.tar.zst"
     - script: |
         py -m pip install --upgrade Pillow
         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "cp $MINGW_PREFIX/bin/opengl32.dll $TEMP/ && cp $MINGW_PREFIX/bin/libgallium_wgl.dll $TEMP/"
