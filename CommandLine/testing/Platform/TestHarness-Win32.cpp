@@ -14,7 +14,7 @@ std::vector<TestConfig> GetValidConfigs(bool platforms, bool graphics, bool audi
   
   for (std::string_view p : {"Win32"} ) {
     // FIXME: glgetteximage is used in opengl-common and is unsupported by gles. This function currently is required to copy surfaces in some tests
-    for (std::string_view g : {"OpenGL1","OpenGL3"/*, "OpenGLES2", "OpenGLES3"*/ }) {
+    for (std::string_view g : {"OpenGL3","OpenGL1"/*, "OpenGLES2", "OpenGLES3"*/ }) {
       // Invalid combos
       if (g == "OpenGLES2" && p != "SDL") continue;
       if (g == "OpenGLES3" && p != "SDL") continue;
@@ -258,13 +258,16 @@ void gather_coverage(const TestConfig &config) {
   char shellpath[MAX_PATH],currentdir[MAX_PATH]; 
   GetEnvironmentVariable( "SHELL", shellpath, MAX_PATH);                            // Get path of mingw-w64 bin/bash
   GetCurrentDirectory(MAX_PATH,currentdir);
+  for(int i=0;currentdir[i]!='\0';i++)
+  if(currentdir[i]=='\\') currentdir[i]='/';
+
   string lcovArgs =
     string(shellpath)+
     " -l -c"
     " \"lcov"
     " --quiet"
     " --no-external"
-    " --base-directory="+string(currentdir)+"ENIGMAsystem/SHELL/" //fix
+    " --base-directory="+currentdir+"/ENIGMAsystem/SHELL/" //fix
     " --capture "+
     src_dir+" "+
     out_file+" \"";
