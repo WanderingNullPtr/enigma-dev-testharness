@@ -45,7 +45,7 @@ jobs:
       workingDirectory: C:\enigma-dev
 
     - script: ls
-    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -c "PWD && cd C:/enigma-dev && mkdir test-harness-out && make all"
+    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -lc "PWD && cd C:/enigma-dev && mkdir test-harness-out && make all"
       workingDirectory: C:\enigma-dev
 
     - script: |
