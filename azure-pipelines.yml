@@ -35,7 +35,8 @@ jobs:
     - script: |
         py -m pip install --upgrade Pillow
         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "cp $MINGW_PREFIX/bin/opengl32.dll $TEMP/ && cp $MINGW_PREFIX/bin/libgallium_wgl.dll $TEMP/"
-        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "cp C:/Windows/System32/d3d10warp.dll $TEMP/d3d11.dll && cp C:/Windows/System32/d3d10warp.dll $TEMP/d3d9.dll"
+        d3dconfig device force-warp=true
+        d3dconfig apps --add c:\msys64\tmp\
       displayName: 'install pillow and install llvmpipe'
     - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "PWD"
       displayName: 'msys working dir with workingDirectory: c:\enigma-dev'
