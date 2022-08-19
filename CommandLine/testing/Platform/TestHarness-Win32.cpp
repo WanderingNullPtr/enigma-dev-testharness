@@ -12,9 +12,9 @@
 std::vector<TestConfig> GetValidConfigs(bool platforms, bool graphics, bool audio, bool collisions, bool widgets, bool network) {
   std::vector<TestConfig> tcs;
   
-  for (std::string_view p : {"Win32", "SDL"} ) {
+  for (std::string_view p : {"Win32"} ) {
     // FIXME: glgetteximage is used in opengl-common and is unsupported by gles. This function currently is required to copy surfaces in some tests
-    for (std::string_view g : {"Direct3D11"/*, "OpenGLES2", "OpenGLES3"*/ }) {
+    for (std::string_view g : {"OpenGL1","OpenGL3"/*, "OpenGLES2", "OpenGLES3"*/ }) {
       // Invalid combos
       if (g == "OpenGLES2" && p != "SDL") continue;
       if (g == "OpenGLES3" && p != "SDL") continue;
@@ -255,15 +255,16 @@ void gather_coverage(const TestConfig &config) {
                  + config.get_or(&TestConfig::mode, "Debug") + "/";
   string out_file = "--output-file=coverage_" + to_string(test_num) + ".info";
 
-  char shellpath[MAX_PATH]; 
+  char shellpath[MAX_PATH],currentdir[MAX_PATH]; 
   GetEnvironmentVariable( "SHELL", shellpath, MAX_PATH);                            // Get path of mingw-w64 bin/bash
+  GetCurrentDirectory(MAX_PATH,currentdir);
   string lcovArgs =
     string(shellpath)+
     " -l -c"
     " \"lcov"
     " --quiet"
     " --no-external"
-    " --base-directory=$PWD/ENIGMAsystem/SHELL/" //fix
+    " --base-directory="+string(currentdir)+"ENIGMAsystem/SHELL/" //fix
     " --capture "+
     src_dir+" "+
     out_file+" \"";

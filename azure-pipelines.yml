@@ -48,7 +48,7 @@ jobs:
 
     - script: |
         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "pacman -Q"
-    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "PWD && ./test-runner.exe"
+    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "export GALLIUM_DRIVER=swr && ./test-runner.exe"
       displayName: 'Run Test-Runner'
       workingDirectory: C:\enigma-dev
     - task: PublishBuildArtifacts@1
