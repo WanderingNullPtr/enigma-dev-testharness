@@ -258,8 +258,6 @@ void gather_coverage(const TestConfig &config) {
   char shellpath[MAX_PATH],currentdir[MAX_PATH]; 
   GetEnvironmentVariable( "SHELL", shellpath, MAX_PATH);                            // Get path of mingw-w64 bin/bash
   GetCurrentDirectory(MAX_PATH,currentdir);
-  for(int i=0;currentdir[i]!='\0';i++)
-  if(currentdir[i]=='\\') currentdir[i]='/';
 
   string lcovArgs =
     string(shellpath)+
@@ -267,7 +265,7 @@ void gather_coverage(const TestConfig &config) {
     " \"lcov"
     " --quiet"
     " --no-external"
-    " --base-directory="+string(currentdir)+"/ENIGMAsystem/SHELL/" //fix
+    " --base-directory="+string_replace_all(string(currentdir),"\\","/")+"/ENIGMAsystem/SHELL/"
     " --capture "+
     src_dir+" "+
     out_file+" \"";
@@ -325,7 +323,7 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
         std::cerr<<"Failed to launch";
         return nullptr;
   }
-  Sleep(5000); // Give the window a 5 seconds to load and display.
+  Sleep(2000); // Give the window 2 seconds to load and display.
 
   for (int i = 0; i < 50; ++i) {  // Try for over ten seconds to grab the window
     HWND win = find_window_by_pid(lacProcess.pi.dwProcessId);
