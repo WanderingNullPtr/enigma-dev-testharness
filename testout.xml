@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuites tests="1" failures="0" disabled="0" errors="0" time="88.203" timestamp="2022-08-19T22:34:05.208" name="AllTests">
-  <testsuite name="Game" tests="1" failures="0" disabled="0" skipped="0" errors="0" time="88.203" timestamp="2022-08-19T22:34:05.208">
-    <testcase name="polygon_collision" status="run" result="completed" time="88.203" timestamp="2022-08-19T22:34:05.208" classname="Game" />
-  </testsuite>
-</testsuites>

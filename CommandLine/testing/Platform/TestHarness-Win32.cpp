@@ -219,7 +219,7 @@ int build_game(const string &game, const TestConfig &tc, const string &out) {
   string extensions = " --extensions="
       + tc.get_or(&TC::extensions, kDefaultExtensions);
 
-  string args = emake_cmd + compiler + mode + platform + graphics + audio + widgets + network + collision + extensions +
+  string args = emake_cmd + compiler + mode + platform + graphics + audio + widgets + network + collision + extensions +" -j2"
                 " \"" + game + "\" -o \"" + out + "\" ";
 
   ProcessData emakeProcess;
