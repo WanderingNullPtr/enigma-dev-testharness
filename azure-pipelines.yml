@@ -49,7 +49,7 @@ jobs:
 
     - script: |
         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "pacman -Q"
-    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "./test-runner.exe --gtest_filter=Regression.image_load_save_test --gtest_output=xml:test-harness-out/testout.xml"
+    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "./test-runner.exe --gtest_output=xml:test-harness-out/testout.xml"
       displayName: 'Run Test-Runner'
       workingDirectory: C:\enigma-dev
     - task: PublishBuildArtifacts@1
