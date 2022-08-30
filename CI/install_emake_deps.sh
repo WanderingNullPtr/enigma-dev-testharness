@@ -2,7 +2,7 @@
 
 set -e
 
-if [ "$TRAVIS_OS_NAME" != "osx" ] && [ "TRAVIS_OS_NAME" != "windows" ]; then
+if [ "$TRAVIS_OS_NAME" != "osx" ] && [ "$TRAVIS_OS_NAME" != "windows" ]; then
   sudo apt-get update --option Acquire::Retries=100 --option Acquire::http::Timeout="60";
 
   if [ "$COMPILER" != "Android" ]; then
