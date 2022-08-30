@@ -12,9 +12,9 @@
 std::vector<TestConfig> GetValidConfigs(bool platforms, bool graphics, bool audio, bool collisions, bool widgets, bool network) {
   std::vector<TestConfig> tcs;
   
-  for (std::string_view p : {"Win32", "SDL"} ) {
+  for (std::string_view p : {"Win32"} ) {
     // FIXME: glgetteximage is used in opengl-common and is unsupported by gles. This function currently is required to copy surfaces in some tests
-    for (std::string_view g : {"OpenGL1", "OpenGL3", "Direct3D9"/*, "OpenGLES2", "OpenGLES3"*/ }) {
+    for (std::string_view g : {"OpenGL1"/*, "OpenGLES2", "OpenGLES3"*/ }) {
       // Invalid combos
       if (g == "OpenGLES2" && p != "SDL") continue;
       if (g == "OpenGLES3" && p != "SDL") continue;
@@ -155,13 +155,17 @@ class Win32_TestHarness final: public TestHarness {
   bool game_is_running() final {
     unsigned long int exitcode;
     GetExitCodeProcess(process_info.hProcess,&exitcode);
-    if(exitcode!=259){                                          // If game process is still running then exitcode stays at 259.
-      return_code=exitcode; 
+    if(exitcode!=STILL_ACTIVE){                                          // If game process is still running then exitcode stays at 259.
+      if(exitcode<0xC0000001 || exitcode>0xCFFFFFFF){
+        return_code=exitcode; 
+        return false;
+      }
+      return_code=ErrorCodes::GAME_CRASHED;
       return false;
     }
     return true;
-    
   }
+
   void close_game() final {
     close_window();
     for (int i = 0; i < 20; ++i) { // Give the game a second to close
@@ -180,7 +184,7 @@ class Win32_TestHarness final: public TestHarness {
     return return_code;
   }
   Win32_TestHarness(PROCESS_INFORMATION game_process_info, HWND game_window,
-                  const TestConfig &tc):
+                    const TestConfig &tc):
       process_info(game_process_info), window_handle(game_window), test_config(tc) {}
   ~Win32_TestHarness() {
     if (game_is_running()) {
@@ -205,6 +209,7 @@ constexpr const char *kDefaultExtensions =
     "ParticleSystems";
 
 int build_game(const string &game, const TestConfig &tc, const string &out) {
+  TestHarness::configpool += TestHarness::configpool == "" ? tc.stringify() : "," + tc.stringify();
   // Invoke the compiler via emake
   using TC = TestConfig;
   string emake_cmd = "emake.exe";
@@ -219,28 +224,31 @@ int build_game(const string &game, const TestConfig &tc, const string &out) {
   string extensions = " --extensions="
       + tc.get_or(&TC::extensions, kDefaultExtensions);
 
-  string args = emake_cmd + compiler + mode + platform + graphics + audio + widgets + network + collision + extensions +" -j2"
+  string args = emake_cmd + compiler + mode + platform + graphics + audio + widgets + network + collision + extensions +" -j4"
                 " \"" + game + "\" -o \"" + out + "\" ";
 
   ProcessData emakeProcess;
 
   if(!CreateProcess(emake_cmd.c_str(),&args[0],NULL,NULL,FALSE,0,NULL,NULL,&emakeProcess.si,&emakeProcess.pi)) return -1;
 
-  bool ret=(WaitForSingleObject(emakeProcess.pi.hProcess,INFINITE)==WAIT_FAILED);         // If Waitfor..Object returns WAIT_FAILED, something was wrong, process handle may not exist
-  //system("./share_logs.sh");
-  if(ret) {
+  system("./share_logs.sh"+game+);
+  
+  //If Waitfor..Object returns WAIT_FAILED, something was wrong, process handle may not exist
+  if(WaitForSingleObject(emakeProcess.pi.hProcess,INFINITE)!=WAIT_OBJECT_0) {
     return -1;
   }
-
   unsigned long int exitcode;
-  GetExitCodeProcess(emakeProcess.pi.hProcess,&exitcode);                                 // TODO: Add checks to GetExitCodeProcess so that we dont deal with bogus exitcodes
-  if(exitcode!=259) {                                                                     // If exitcode isnt 259 then emake has returned
-    return exitcode;
+  if(GetExitCodeProcess(emakeProcess.pi.hProcess,&exitcode)) {                                 // TODO: Add checks to GetExitCodeProcess so that we dont deal with bogus exitcodes
+    if(exitcode!=STILL_ACTIVE && (exitcode<0xC0000001 || exitcode>0xCFFFFFFF)) {            // If exitcode isnt 259 then emake has returned
+      return exitcode;
+    }
   }
   return -1;
 }
 
 void gather_coverage(const TestConfig &config) {
+  return;
+  SCOPED_TRACE(config.stringify());
   static int test_num = 0;
   test_num++;
 
@@ -277,13 +285,13 @@ void gather_coverage(const TestConfig &config) {
     ADD_FAILURE() << "Coverage failed to execute for test " << test_num << '!';
     return;
   }
-  if(WaitForSingleObject(lcovProcess.pi.hProcess,INFINITE)==WAIT_FAILED){
+  if(WaitForSingleObject(lcovProcess.pi.hProcess,INFINITE)!=WAIT_OBJECT_0){
     ADD_FAILURE() << "Waiting on coverage report for test " << test_num
                   << " somehow failed...";
     return;
   }
   if(GetExitCodeProcess(lcovProcess.pi.hProcess,&exitcode)){        // Enter block only if GetExitCodeProcess succeeds in fetching a return
-    if(exitcode!=259){ //STILL_ACTIVE = 259
+    if(exitcode!=STILL_ACTIVE && (exitcode<0xC0000001 || exitcode>0xCFFFFFFF)){ //STILL_ACTIVE = 259
         if(exitcode){
             ADD_FAILURE() << "LCOV run for test " << test_num
                           << " exited with status " << exitcode << "...";
@@ -320,10 +328,10 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
   ProcessData lacProcess(true);  // Special process, have to close handles manually
 
   if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,FALSE,0,NULL,NULL,&lacProcess.si,&lacProcess.pi)){
-        std::cerr<<"Failed to launch";
+        std::cerr<<"Failed to launch\n";
         return nullptr;
   }
-  Sleep(2000); // Give the window 2 seconds to load and display.
+  Sleep(5000); // Give the window 5 seconds to load and display.
 
   for (int i = 0; i < 50; ++i) {  // Try for over ten seconds to grab the window
     HWND win = find_window_by_pid(lacProcess.pi.dwProcessId);
@@ -336,7 +344,7 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     };
     Sleep(250);
   }
-  std::cerr<<"Did not get window";                // check if game failed to launch or did not get a window
+  std::cerr<<"Did not get window\n";                // check if game failed to launch or did not get a window
   return nullptr;
 }
 
@@ -348,6 +356,8 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
   char tmp_path[MAX_PATH];
   GetEnvironmentVariable("tmp",tmp_path,MAX_PATH);                 //Expand msys2 tmp path
   string out = string(tmp_path)+"/test-game.exe";
+
+  
 
   if (int retcode = build_game(game, tc, out)) {
     if (retcode == -1) {
@@ -371,13 +381,13 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
   for (int i = 0; i < 30000000; i += 12500) {
     unsigned long int wr = WaitForSingleObject(rtcProcess.pi.hProcess,0),exitcode;
     GetExitCodeProcess(rtcProcess.pi.hProcess,&exitcode);
-    if (exitcode!=259) {                  // 259 denotes that the game has not exited yet
-      if (wr != WAIT_FAILED) {            // If WaitForSingleObject return WAIT_FAILED then there was something wrong
-        if (exitcode == 0) {
+    if (exitcode != STILL_ACTIVE) {                  // 259 denotes that the game has not exited yet
+      if (wr == WAIT_OBJECT_0) {
+        if (exitcode < 0xC0000001 || exitcode > 0xCFFFFFFF) {
           gather_coverage(tc);
-          return 0;
+          return exitcode;
         }
-        return ErrorCodes::GAME_CRASHED;          // TODO: Define crash scenario and handle returning proper codes
+        return ErrorCodes::GAME_CRASHED;
       }
       // Ignore the error for now...
       std::cerr << "Warning: ignoring waitpid being dumb." << std::endl;
