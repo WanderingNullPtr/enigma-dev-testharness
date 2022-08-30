@@ -231,7 +231,7 @@ int build_game(const string &game, const TestConfig &tc, const string &out) {
 
   if(!CreateProcess(emake_cmd.c_str(),&args[0],NULL,NULL,FALSE,0,NULL,NULL,&emakeProcess.si,&emakeProcess.pi)) return -1;
 
-  system("./share_logs.sh"+game+);
+  system("./share_logs.sh"+game);
   
   //If Waitfor..Object returns WAIT_FAILED, something was wrong, process handle may not exist
   if(WaitForSingleObject(emakeProcess.pi.hProcess,INFINITE)!=WAIT_OBJECT_0) {
