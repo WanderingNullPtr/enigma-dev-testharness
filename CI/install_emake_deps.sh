@@ -20,4 +20,4 @@ elif [ "$TRAVIS_OS_NAME" == "windows" ]; then
   pacman -Sy --noconfirm --needed mingw-w64-x86_64-boost
 fi
 
-#g++ --version
+g++ --version
