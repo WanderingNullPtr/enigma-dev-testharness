@@ -44,8 +44,7 @@ if [ "$TRAVIS_OS_NAME" == "windows" ]; then
 else
   ./test-runner --gtest_output=xml:test-harness-out/AllTestX11.xml
 fi
-# generate HTML report
-./generate_report.sh
+
 if [[ "$TRAVIS" -eq "true" ]]; then
   # upload coverage report before running regression tests
   bash <(curl -s https://codecov.io/bash) -f "*.info" -t "$_CODECOV_UPLOAD_TOKEN"
