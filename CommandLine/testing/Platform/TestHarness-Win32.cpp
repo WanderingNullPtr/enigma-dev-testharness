@@ -67,9 +67,33 @@ struct hwndPid{                         //Structure to store Process ID and Wind
   unsigned long pid;
   HWND whandle;
 };
-
+void CreateShellProc_Wait(string);
+void CaptureStdOut( const HANDLE stdOut) {
+  char tmpPath[MAX_PATH];
+  GetEnvironmentVariable("tmp",tmpPath,MAX_PATH);
+  HANDLE parentStd_Out = GetStdHandle(STD_OUTPUT_HANDLE);
+  DWORD dwRead,dwWritten;
+  CHAR buf[BUFSIZE];
+  BOOL bSuccess = FALSE;
+  string savelog = string(tmpPath)+"/enigma_game.log";
+  HANDLE game_log = CreateFile(savelog.c_str(),GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+  if (game_log == INVALID_HANDLE_VALUE) {
+    std::cerr<<"Failed to create game log."<<std::endl;
+    CloseHandle(stdOut);
+    return;
+  }
+  for (;;) {
+    bSuccess = ReadFile(stdOut,buf,BUFSIZE,&dwRead,NULL);
+    if(!bSuccess || dwRead == 0) break;
+    if(!WriteFile(game_log, buf,dwRead,&dwWritten,NULL)) break;
+    if(!WriteFile(parentStd_Out, buf,dwRead,&dwWritten,NULL)) break;
+  }
+  CloseHandle(game_log);
+  CloseHandle(stdOut);
+  return;
+}
 class ProcessData{                      // A class to manage process handle closing for normal and harness attached processes seperately
-  bool islac;
+  bool islac=false,share_log=false;
   HANDLE childStd_Out_Wr = NULL;
   HANDLE childStd_Out_Rd = NULL;
   string game_name;
@@ -82,7 +106,7 @@ class ProcessData{                      // A class to manage process handle clos
       sAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
       sAttr.bInheritHandle = TRUE;
       sAttr.lpSecurityDescriptor = NULL;
-      if(!CreatePipe(&childStd_Out_Rd, &childStd_Out_Wr, &sAttr, 0)){
+      if(!CreatePipe(&childStd_Out_Rd, &childStd_Out_Wr, &sAttr, 0)) {
         std::cerr<<"Failed to create pipe"<<std::endl;
         return;
       }
@@ -99,42 +123,20 @@ class ProcessData{                      // A class to manage process handle clos
   public:
   PROCESS_INFORMATION pi;
   STARTUPINFO si;
-  ProcessData(bool flag):islac(flag) {}  //Overload for use in Launch and Attach block
+  ProcessData(bool lacflag, bool shareflag):islac(lacflag), share_log(shareflag) {}  //Overload for use in Launch and Attach block
   ProcessData() {}
   ~ProcessData(){                       //If islac == true, then the process handles (hProcess, hThread) needs to be closed explicitly by the harness when it gets destroyed
     if(!islac){
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     }
-  }
-  void CaptureStdOut() {
-    char tmpPath[MAX_PATH];
-    GetEnvironmentVariable("tmp",tmpPath,MAX_PATH);
-    HANDLE parentStd_Out = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD dwRead,dwWritten;
-    CHAR buf[BUFSIZE];
-    BOOL bSuccess = FALSE;
-    string savelog = string(tmpPath)+"/enigma_game.log";
-    HANDLE game_log = CreateFile(savelog.c_str(),GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
-    if (game_log == INVALID_HANDLE_VALUE) {
-      std::cerr<<"Failed to create game log."<<std::endl;
-      CloseHandle(childStd_Out_Rd);
-      return;
+    if(share_log){
+      CreateShellProc_Wait("./share_logs.sh ");;
     }
-    for (;;) {
-      bSuccess = ReadFile(childStd_Out_Rd,buf,BUFSIZE,&dwRead,NULL);
-      if(!bSuccess || dwRead == 0) break;
-      if(!WriteFile(game_log, buf,dwRead,&dwWritten,NULL)) break;
-      if(!WriteFile(parentStd_Out, buf,dwRead,&dwWritten,NULL)) break;
-    }
-    CloseHandle(game_log);
-    CloseHandle(childStd_Out_Rd);
-    return;
   }
   void CaptureThread(){
     std::cout<<childStd_Out_Rd<<'\n';
-
-    std::thread capThread(&ProcessData::CaptureStdOut,this);
+    std::thread capThread(CaptureStdOut,childStd_Out_Rd);
     capThread.detach();
   }
   bool CreateGameProc(string out) {
@@ -231,8 +233,8 @@ class Win32_TestHarness final: public TestHarness {
   }
 
   bool game_is_running() final {
-    unsigned long int wr = WaitForSingleObject(process_info.hProcess,0) , exitcode;
-    GetExitCodeProcess(process_info.hProcess,&exitcode);
+    unsigned long int wr = WaitForSingleObject(process_info->pi.hProcess,0) , exitcode;
+    GetExitCodeProcess(process_info->pi.hProcess,&exitcode);
     if(exitcode != STILL_ACTIVE && wr != WAIT_TIMEOUT){                                          // If game process is still running then exitcode stays at 259.
       if(exitcode<0xC0000001 || exitcode>0xCFFFFFFF){
         return_code=exitcode; 
@@ -251,7 +253,7 @@ class Win32_TestHarness final: public TestHarness {
       Sleep(50);
     }
     std::cerr << "Warning: game did not close; terminated" << std::endl;
-    TerminateProcess(process_info.hProcess,-1);                  // Terminates the game process and makes it return -1.
+    TerminateProcess(process_info->pi.hProcess,-1);                  // Terminates the game process and makes it return -1.
     return_code = ErrorCodes::TIMED_OUT;
   }
 
@@ -261,21 +263,22 @@ class Win32_TestHarness final: public TestHarness {
   int get_return() final {
     return return_code;
   }
-  Win32_TestHarness(PROCESS_INFORMATION game_process_info, HWND game_window,
+  Win32_TestHarness(ProcessData* game_process_info, HWND game_window,
                     const TestConfig &tc):
       process_info(game_process_info), window_handle(game_window), test_config(tc) {}
   ~Win32_TestHarness() {
     if (game_is_running()) {
-      TerminateProcess(process_info.hProcess,-1);
+      TerminateProcess(process_info->pi.hProcess,-1);
       std::cerr << "Game still running; killed" << std::endl;
     }
-    CloseHandle(process_info.hProcess);                          // Explicitly close process handles for harness attached launches
-    CloseHandle(process_info.hThread);
+    CloseHandle(process_info->pi.hProcess);                          // Explicitly close process handles for harness attached launches
+    CloseHandle(process_info->pi.hThread);
     gather_coverage(test_config);
+    delete process_info;
   }
 
 private:
-  PROCESS_INFORMATION process_info;
+  ProcessData* process_info;
   HWND window_handle;
   bool run_lcov;
   TestConfig test_config;
@@ -399,22 +402,22 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     return nullptr;
   }
 
-  ProcessData lacProcess(true);  // Special process, have to close handles manually
+  ProcessData* lacPprocess =  new ProcessData(true,true);  // Special process, have to close handles manually
 
-  if(!lacProcess.CreateGameProc(out)){
+  if(!lacPprocess->CreateGameProc(out)){
         std::cerr<<"Failed to launch\n";
         return nullptr;
   }
   Sleep(5000); // Give the window 5 seconds to load and display.
 
   for (int i = 0; i < 50; ++i) {  // Try for over ten seconds to grab the window
-    HWND win = find_window_by_pid(lacProcess.pi.dwProcessId);
+    HWND win = find_window_by_pid( (lacPprocess->pi).dwProcessId);
     unsigned long int pid;
     GetWindowThreadProcessId(win,&pid);
-    if (pid==lacProcess.pi.dwProcessId){
+    if (pid == (lacPprocess->pi).dwProcessId){
       //SetWindowPos(win,HWND_TOPMOST,0,0,0,0,SWP_NOSIZE|SWP_NOMOVE);                // TODO: Bring window to front after being created
           return std::unique_ptr<Win32_TestHarness>(
-          new Win32_TestHarness(lacProcess.pi, win, tc));
+          new Win32_TestHarness(lacPprocess, win, tc));
     };
     Sleep(250);
   }
@@ -442,7 +445,7 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
     return ErrorCodes::BUILD_FAILED;
   }
 
-  ProcessData rtcProcess;
+  ProcessData rtcProcess(false,true);
   char currentdir[MAX_PATH];
   GetCurrentDirectory(MAX_PATH,currentdir);                        // Store current working directory to switch back to later
   SetCurrentDirectory(game.substr(0, game.find_last_of("\\/")).c_str());              //Set current directory to the game's dir
