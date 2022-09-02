@@ -1,4 +1,3 @@
-    
 pr:  # Trigger a build on every PR.
   branches:
     include:
@@ -45,6 +44,12 @@ jobs:
         _BOT_PUSH_ON_GREEN_TOKEN: $(bot_push_on_green_token)
         _CODECOV_UPLOAD_TOKEN: $(codecov_upload_token)
       displayName: Run Test Harness
+    
+    - task: PublishBuildArtifacts@1
+      displayName: 'Push Build Artifacts'
+      inputs:
+        pathtoPublish: 'test-harness-out\'
+      condition: always()
 
 - job: TestHarnessWindows
   displayName: 'Test Harness Windows'
@@ -64,17 +69,23 @@ jobs:
       path: enigma-dev
   
     - script: |
-        (robocopy $(Build.SourcesDirectory) C:\enigma-dev /COPYALL /E) ^& IF %ERRORLEVEL% LEQ 1 exit 0
         py -m pip install --upgrade Pillow
     - script: |
         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "./CI/install_emake_deps.sh && ./CI/split_jobs.sh install && cp ./CI/asound.conf /etc/asound.conf"
       displayName: Install Dependencies
+    
     - script: |
-         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "make -j4 && make -j4 emake"
+        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "sed -i 's/\"bcrypt\"/-lbcrypt/g' $MINGW_PREFIX/lib/pkgconfig/absl_random_internal_seed_material.pc && \
+        sed -i 's/\"dbghelp\"/-ldbghelp/g' $MINGW_PREFIX/lib/pkgconfig/absl_symbolize.pc && \
+        sed -i 's/\"advapi32\"/-ladvapi32/g' $MINGW_PREFIX/lib/pkgconfig/absl_base.pc"
+      displayName: Patch Abseil pc
+
+    - script: |
+        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "make -j4 && make -j4 emake"
       displayName: Build emake
       
     - script: |
-         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "make emake-tests && ./emake-tests"
+        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "make emake-tests && ./emake-tests"
       displayName: Test emake
    
     - script: |
@@ -106,7 +117,7 @@ jobs:
     - task: PublishBuildArtifacts@1
       displayName: 'Push Build Artifacts'
       inputs:
-        pathtoPublish: 'C:\enigma-dev\test-harness-out\'
+        pathtoPublish: 'test-harness-out\'
       condition: always()
 
 - job: Windows

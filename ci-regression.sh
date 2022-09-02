@@ -40,10 +40,12 @@ PREVIOUS_PWD=${PWD}
 pushd "${TEST_HARNESS_MASTER_DIR}"
 make all -j$MAKE_JOBS
 if [ "$TRAVIS_OS_NAME" == "windows" ]; then
-    ./test-runner --gtest_filter=*-Regression.image_load_save_test
-  else
-    ./test-runner
-  fi
+  ./test-runner --gtest_filter=*-Regression.image_load_save_test --gtest_output=xml:test-harness-out/AllTestWin32.xml
+else
+  ./test-runner --gtest_output=xml:test-harness-out/AllTestX11.xml
+fi
+# generate HTML report
+./generate_report.sh
 if [[ "$TRAVIS" -eq "true" ]]; then
   # upload coverage report before running regression tests
   bash <(curl -s https://codecov.io/bash) -f "*.info" -t "$_CODECOV_UPLOAD_TOKEN"
@@ -81,9 +83,9 @@ if [[ "${PWD}" == "${TEST_HARNESS_MASTER_DIR}" ]]; then
   echo "Generating regression comparison images..."
   mkdir -p "${PWD}/test-harness-out"
   if [ "$TRAVIS_OS_NAME" == "windows" ]; then
-    ./test-runner --gtest_filter=Regression.*-Regression.image_load_save_test
+    ./test-runner --gtest_filter=Regression.*-Regression.image_load_save_test --gtest_output=xml:test-harness-out/RegressionWin32.xml
   else
-    ./test-runner --gtest_filter=Regression.*
+    ./test-runner --gtest_filter=Regression.* --gtest_output=xml:test-harness-out/RegressionX11.xml
   fi
 
   popd

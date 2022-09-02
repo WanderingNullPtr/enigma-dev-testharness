@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <iostream>
+#include <fstream>
+#include <thread>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -52,6 +54,8 @@ using std::to_string;
 using std::unique_ptr;
 using std::getenv;
 
+#define BUFSIZE 4096
+
 void gather_coverage(const TestConfig&);
 bool config_supports_lcov(const TestConfig &tc) {
   return tc.compiler.empty() || tc.compiler == "TestHarness";
@@ -59,7 +63,6 @@ bool config_supports_lcov(const TestConfig &tc) {
 
 //support functions
 //string get_window_caption(HWND win_hnd);
-
 struct hwndPid{                         //Structure to store Process ID and Window handle for use in EnumWindows
   unsigned long pid;
   HWND whandle;
@@ -67,28 +70,103 @@ struct hwndPid{                         //Structure to store Process ID and Wind
 
 class ProcessData{                      // A class to manage process handle closing for normal and harness attached processes seperately
   bool islac;
+  HANDLE childStd_Out_Wr = NULL;
+  HANDLE childStd_Out_Rd = NULL;
+  string game_name;
+  void meminit(bool ispiped){                       //Initialise STARTUPINFO and PROCESS_INFORMATION
+    ZeroMemory( &pi, sizeof(pi));
+    ZeroMemory( &si, sizeof(si)); 
+    si.cb = sizeof(si);
+    if (ispiped) {
+      SECURITY_ATTRIBUTES sAttr;
+      sAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+      sAttr.bInheritHandle = TRUE;
+      sAttr.lpSecurityDescriptor = NULL;
+      if(!CreatePipe(&childStd_Out_Rd, &childStd_Out_Wr, &sAttr, 0)){
+        std::cerr<<"Failed to create pipe"<<std::endl;
+        return;
+      }
+      if(!SetHandleInformation(childStd_Out_Rd, HANDLE_FLAG_INHERIT, 0)){
+        std::cerr<<"Failed to set handle information"<<std::endl;
+        return;
+      }
+      si.hStdError = childStd_Out_Wr;
+      si.hStdOutput = childStd_Out_Wr;
+      si.dwFlags |= STARTF_USESTDHANDLES;
+    }
+    return;
+  }
   public:
   PROCESS_INFORMATION pi;
   STARTUPINFO si;
-  void meminit(){                       //Initialise STARTUPINFO and PROCESS_INFORMATION
-    ZeroMemory( &si, sizeof(si)); 
-    si.cb = sizeof(si);
-    ZeroMemory( &pi, sizeof(pi));
-    return;
-  }
-  ProcessData(bool flag):islac(flag){   //Overload for use in Launch and Attach block
-    meminit();
-  }
-  ProcessData(){
-    meminit();
-  }
+  ProcessData(bool flag):islac(flag) {}  //Overload for use in Launch and Attach block
+  ProcessData() {}
   ~ProcessData(){                       //If islac == true, then the process handles (hProcess, hThread) needs to be closed explicitly by the harness when it gets destroyed
     if(!islac){
         CloseHandle(pi.hProcess);
         CloseHandle(pi.hThread);
     }
   }
+  void CaptureStdOut() {
+    char tmpPath[MAX_PATH];
+    GetEnvironmentVariable("tmp",tmpPath,MAX_PATH);
+    HANDLE parentStd_Out = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD dwRead,dwWritten;
+    CHAR buf[BUFSIZE];
+    BOOL bSuccess = FALSE;
+    string savelog = string(tmpPath)+"/enigma_game.log";
+    HANDLE game_log = CreateFile(savelog.c_str(),GENERIC_WRITE,0,NULL,CREATE_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+    if (game_log == INVALID_HANDLE_VALUE) {
+      std::cerr<<"Failed to create game log."<<std::endl;
+      CloseHandle(childStd_Out_Rd);
+      return;
+    }
+    for (;;) {
+      bSuccess = ReadFile(childStd_Out_Rd,buf,BUFSIZE,&dwRead,NULL);
+      if(!bSuccess || dwRead == 0) break;
+      if(!WriteFile(game_log, buf,dwRead,&dwWritten,NULL)) break;
+      if(!WriteFile(parentStd_Out, buf,dwRead,&dwWritten,NULL)) break;
+    }
+    CloseHandle(game_log);
+    CloseHandle(childStd_Out_Rd);
+    return;
+  }
+  void CaptureThread(){
+    std::cout<<childStd_Out_Rd<<'\n';
+
+    std::thread capThread(&ProcessData::CaptureStdOut,this);
+    capThread.detach();
+  }
+  bool CreateGameProc(string out) {
+    meminit(true);
+    if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,TRUE,0,NULL,NULL,&si,&pi))
+      return false;
+    CloseHandle(childStd_Out_Wr);
+    CaptureThread();
+    return true;
+  }
+  bool CreateBuildProc(string emake,string arguments) {
+    meminit(false);
+    if(!CreateProcess(emake.c_str(),&arguments[0],NULL,NULL,FALSE,0,NULL,NULL,&si,&pi))
+      return false;
+    return true;
+  }
+  bool CreateShellProc(string arguments) {
+    meminit(false);
+    char shellPath[MAX_PATH];
+    GetEnvironmentVariable( "SHELL", shellPath, MAX_PATH);
+    string shell_args = string(shellPath) + " -lc \""+arguments+"\"";
+    if(!CreateProcess(shellPath,&shell_args[0],NULL,NULL,FALSE,0,NULL,NULL,&si,&pi))
+      return false;
+    return true;
+  }
 };
+void CreateShellProc_Wait(string arguments) {
+  ProcessData shellProc;
+  shellProc.CreateShellProc(arguments);
+  WaitForSingleObject(shellProc.pi.hProcess,INFINITE);
+  return;
+}
 
 BOOL CALLBACK EnumWindowCallback(HWND winhnd, LPARAM lparam) {      //Callback function that checks if the PID we have matches the PID of the Top-level window being enumerated by EnumWindows
     (*(hwndPid *)lparam).whandle=winhnd;
@@ -153,9 +231,9 @@ class Win32_TestHarness final: public TestHarness {
   }
 
   bool game_is_running() final {
-    unsigned long int exitcode;
+    unsigned long int wr = WaitForSingleObject(process_info.hProcess,0) , exitcode;
     GetExitCodeProcess(process_info.hProcess,&exitcode);
-    if(exitcode!=STILL_ACTIVE){                                          // If game process is still running then exitcode stays at 259.
+    if(exitcode != STILL_ACTIVE && wr != WAIT_TIMEOUT){                                          // If game process is still running then exitcode stays at 259.
       if(exitcode<0xC0000001 || exitcode>0xCFFFFFFF){
         return_code=exitcode; 
         return false;
@@ -229,14 +307,16 @@ int build_game(const string &game, const TestConfig &tc, const string &out) {
 
   ProcessData emakeProcess;
 
-  if(!CreateProcess(emake_cmd.c_str(),&args[0],NULL,NULL,FALSE,0,NULL,NULL,&emakeProcess.si,&emakeProcess.pi)) return -1;
-
-  //system("./share_logs.sh");
+  if(!emakeProcess.CreateBuildProc(emake_cmd,args)) return -1;
   
   //If Waitfor..Object returns WAIT_FAILED, something was wrong, process handle may not exist
   if(WaitForSingleObject(emakeProcess.pi.hProcess,INFINITE)!=WAIT_OBJECT_0) {
     return -1;
   }
+  
+  string slogs_arg = "./share_logs.sh " + game.substr(game.find_last_of("\\/")+1)+tc.stringify();
+  CreateShellProc_Wait(slogs_arg);
+  
   unsigned long int exitcode;
   if(GetExitCodeProcess(emakeProcess.pi.hProcess,&exitcode)) {                                 // TODO: Add checks to GetExitCodeProcess so that we dont deal with bogus exitcodes
     if(exitcode!=STILL_ACTIVE && (exitcode<0xC0000001 || exitcode>0xCFFFFFFF)) {            // If exitcode isnt 259 then emake has returned
@@ -263,25 +343,19 @@ void gather_coverage(const TestConfig &config) {
                  + config.get_or(&TestConfig::mode, "Debug") + "/";
   string out_file = "--output-file=coverage_" + to_string(test_num) + ".info";
 
-  char shellpath[MAX_PATH],currentdir[MAX_PATH]; 
-  GetEnvironmentVariable( "SHELL", shellpath, MAX_PATH);                            // Get path of mingw-w64 bin/bash
-  GetCurrentDirectory(MAX_PATH,currentdir);
-
   string lcovArgs =
-    string(shellpath)+
-    " -l -c"
-    " \"lcov"
+    "lcov"
     " --quiet"
     " --no-external"
-    " --base-directory="+string_replace_all(string(currentdir),"\\","/")+"/ENIGMAsystem/SHELL/"
+    " --base-directory=ENIGMAsystem/SHELL/"
     " --capture "+
     src_dir+" "+
-    out_file+" \"";
+    out_file;
 
   ProcessData lcovProcess;
   unsigned long int exitcode;
 
-  if(!CreateProcess(shellpath,&lcovArgs[0],NULL,NULL,FALSE,0,NULL,NULL,&lcovProcess.si,&lcovProcess.pi)){
+  if(!lcovProcess.CreateShellProc(lcovArgs)) {
     ADD_FAILURE() << "Coverage failed to execute for test " << test_num << '!';
     return;
   }
@@ -313,9 +387,9 @@ bool TestHarness::windowing_supported() {
 
 unique_ptr<TestHarness>
 TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
-  char tmp_path[MAX_PATH];
-  GetEnvironmentVariable("tmp",tmp_path,MAX_PATH);
-  string out = string(tmp_path)+"/test-game.exe";
+  char tmpPath[MAX_PATH];
+  GetEnvironmentVariable("tmp",tmpPath,MAX_PATH);
+  string out = string(tmpPath)+"/test-game.exe";
   if (int retcode = build_game(game, tc, out)) {
     if (retcode == -1) {
       std::cerr << "Failed to run emake." << std::endl;
@@ -327,7 +401,7 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
 
   ProcessData lacProcess(true);  // Special process, have to close handles manually
 
-  if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,FALSE,0,NULL,NULL,&lacProcess.si,&lacProcess.pi)){
+  if(!lacProcess.CreateGameProc(out)){
         std::cerr<<"Failed to launch\n";
         return nullptr;
   }
@@ -353,9 +427,9 @@ constexpr int operator"" _million(unsigned long long x) {
 }
 
 int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
-  char tmp_path[MAX_PATH];
-  GetEnvironmentVariable("tmp",tmp_path,MAX_PATH);                 //Expand msys2 tmp path
-  string out = string(tmp_path)+"/test-game.exe";
+  char tmpPath[MAX_PATH];
+  GetEnvironmentVariable("tmp",tmpPath,MAX_PATH);                 //Expand msys2 tmp path
+  string out = string(tmpPath)+"/test-game.exe";
 
   
 
@@ -373,15 +447,15 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
   GetCurrentDirectory(MAX_PATH,currentdir);                        // Store current working directory to switch back to later
   SetCurrentDirectory(game.substr(0, game.find_last_of("\\/")).c_str());              //Set current directory to the game's dir
 
-  if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,FALSE,0,NULL,NULL,&rtcProcess.si,&rtcProcess.pi)){
+  if(!rtcProcess.CreateGameProc(out)){
     return ErrorCodes::LAUNCH_FAILED;
   }
   SetCurrentDirectory(currentdir);        // Switch back
 
   for (int i = 0; i < 30000000; i += 12500) {
-    unsigned long int wr = WaitForSingleObject(rtcProcess.pi.hProcess,0),exitcode;
+    unsigned long int wr = WaitForSingleObject(rtcProcess.pi.hProcess,0) , exitcode;
     GetExitCodeProcess(rtcProcess.pi.hProcess,&exitcode);
-    if (exitcode != STILL_ACTIVE) {                  // 259 denotes that the game has not exited yet
+    if (exitcode != STILL_ACTIVE && wr != WAIT_TIMEOUT) {                  // 259 denotes that the game has not exited yet
       if (wr == WAIT_OBJECT_0) {
         if (exitcode < 0xC0000001 || exitcode > 0xCFFFFFFF) {
           gather_coverage(tc);
@@ -390,7 +464,7 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
         return ErrorCodes::GAME_CRASHED;
       }
       // Ignore the error for now...
-      std::cerr << "Warning: ignoring waitpid being dumb." << std::endl;
+      std::cerr << "Warning: Waiting failed." << std::endl;
     }
     Sleep(12);
   }
