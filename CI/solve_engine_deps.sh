@@ -2,7 +2,7 @@
 
 ###### Harness #######
 if [ "$TEST_HARNESS" == true ]; then
-  LINUX_DEPS="$LINUX_DEPS openbox libgtest-dev wmctrl xdotool lcov"
+  LINUX_DEPS="$LINUX_DEPS openbox libgtest-dev wmctrl xdotool lcov x11-utils"
   WINDOWS_DEPS="$WINDOWS_DEPS git make rsync mingw-w64-x86_64-toolchain mingw-w64-x86_64-boost mingw-w64-x86_64-pugixml\
   mingw-w64-x86_64-rapidjson mingw-w64-x86_64-yaml-cpp mingw-w64-x86_64-grpc mingw-w64-x86_64-protobuf mingw-w64-x86_64-glm\
   mingw-w64-x86_64-libpng mingw-w64-x86_64-re2 mingw-w64-x86_64-box2d mingw-w64-x86_64-libffi mingw-w64-x86_64-glew\
