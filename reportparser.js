@@ -8,16 +8,19 @@ function getattrs(xmlElement,attrparam) {
   }
   return res; 
 }
-function getTrace(failElement) {
-  let message = failElement.getAttribute("message");
+function getTrace(failMessage) {
+  let message = failMessage;
   let bTrace = message.lastIndexOf(":");
-  let configTraceIndex = message.indexOf("[",bTrace==-1?message.length:bTrace);
+  let configTraceIndex = message.indexOf( "[", bTrace==-1 ? message.length : bTrace);
   if(configTraceIndex != -1) {
-    return message.substring(configTraceIndex,message.length);
+    return message.substring( configTraceIndex, message.length);
   }
   else {
     return "";
   }
+}
+function removeTrace(failMessage) {
+  return failMessage.substring( 0 , failMessage.indexOf("Google Test trace:")-1);
 }
 function loader(){
   var reportParser = new DOMParser();
@@ -77,7 +80,7 @@ function loader(){
       </div></li>`;
 
       document.getElementById(`testcases_${i}`).insertAdjacentHTML("beforeend",testcase_template);
-
+    
       for(let ii = 0; ii < testcase.configpool.length; ii++){
         img = testsuite.name == "Regression" ?
               `<img src="enigma_${testcase.game}${testcase.configpool[ii]}.png" width="200">`
@@ -99,17 +102,16 @@ function loader(){
       }
 
       for(let k = 0; k < failureXML.length; k++) {
-        var failure = {};
-        failure.trace = getTrace(failureXML[k]);
-
+        var failure = getattrs(failureXML[k],["message"]);
+        failure.trace = getTrace(failure.message);
         if (!failure.trace.length){
-          
+          let fail_template = `<li><div><b>Failure: </b><pre>${failure.message}<pre></div></li>`;
+          document.getElementById(`noconfigfails_${i}_${j}`).insertAdjacentHTML("beforeend", fail_template);
         }
         else {
-        
+          let fail_template = `<li><div><b>Failure: </b><pre>${removeTrace(failure.message)}</pre></div></li>`;
+          document.getElementById(`${testcase.game}_${failure.trace}`).insertAdjacentHTML("beforeend",fail_template);
         }
-
-
       }
     }
   }
