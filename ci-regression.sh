@@ -40,9 +40,9 @@ PREVIOUS_PWD=${PWD}
 pushd "${TEST_HARNESS_MASTER_DIR}"
 make all -j$MAKE_JOBS
 if [ "$TRAVIS_OS_NAME" == "windows" ]; then
-  ./test-runner --gtest_filter=*-Regression.image_load_save_test --gtest_output=xml:test-harness-out/AllTestWin32.xml
+  ./test-runner --gtest_filter=*-Regression.image_load_save_test --gtest_output=xml:test-harness-out/TestReport.xml
 else
-  ./test-runner --gtest_output=xml:test-harness-out/AllTestX11.xml
+  ./test-runner --gtest_output=xml:test-harness-out/TestReport.xml
 fi
 
 if [[ "$TRAVIS" -eq "true" ]]; then
@@ -82,9 +82,9 @@ if [[ "${PWD}" == "${TEST_HARNESS_MASTER_DIR}" ]]; then
   echo "Generating regression comparison images..."
   mkdir -p "${PWD}/test-harness-out"
   if [ "$TRAVIS_OS_NAME" == "windows" ]; then
-    ./test-runner --gtest_filter=Regression.*-Regression.image_load_save_test --gtest_output=xml:test-harness-out/RegressionWin32.xml
+    ./test-runner --gtest_filter=Regression.*-Regression.image_load_save_test
   else
-    ./test-runner --gtest_filter=Regression.* --gtest_output=xml:test-harness-out/RegressionX11.xml
+    ./test-runner --gtest_filter=Regression.*
   fi
 
   popd

@@ -4,7 +4,7 @@ head="<!DOCTYPE html><html><head><link rel=\"stylesheet\" href=\"reportstyle.css
 
 tail="</script><body onload=\"loader()\"></body></html>"
 
-sed "1s|.*|$head|" test-harness-out/testy.xml > test-harness-out/report.html
+sed "1s|.*|$head|" test-harness-out/TestReport.xml > test-harness-out/report.html
 echo $tail >> test-harness-out/report.html
 
 cp reportparser.js reportstyle.css test-harness-out/
