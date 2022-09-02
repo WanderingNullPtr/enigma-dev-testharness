@@ -205,7 +205,7 @@ int build_game(const string &game, const TestConfig &tc, const string &out) {
     int status = 0;
     if (emake == -1) return -1;
     int ret = (waitpid(emake, &status, 0) == -1);
-    const string slogs_arg = "./share_logs " + game.substr(game.find_last_of("\\/")+1)+tc.stringify();
+    const string slogs_arg = "./share_logs.sh " + game.substr(game.find_last_of("\\/")+1)+tc.stringify();
     system(slogs_arg.c_str());
     if (ret) return -1;
     if (WIFEXITED(status)) return WEXITSTATUS(status);
