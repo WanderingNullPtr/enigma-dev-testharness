@@ -2,12 +2,12 @@
 RD /S /Q "C:/msys64/"
 
 ::Download and Install 7zip
-::curl http://mirrors.enigma-dev.org/7z1900-x64.msi -o "%TMP%\7z.msi"
-::msiexec.exe /i "%TMP%\7z.msi" /QN /L*V "%TMP%\idgaf.log"
+curl http://mirrors.enigma-dev.org/7z1900-x64.msi -o "%TMP%\7z.msi"
+msiexec.exe /i "%TMP%\7z.msi" /QN /L*V "%TMP%\idgaf.log"
 
 ::Download and Extract NSIS
-::curl http://mirrors.enigma-dev.org/nsis-binary-7208-3.zip  -o "%TMP%\nsis.zip"
-::"%ProgramFiles%\7-zip/7z" -y -o"%TMP%" x "%TMP%\nsis.zip"
+curl http://mirrors.enigma-dev.org/nsis-binary-7208-3.zip  -o "%TMP%\nsis.zip"
+"%ProgramFiles%\7-zip/7z" -y -o"%TMP%" x "%TMP%\nsis.zip"
 
 ::Download and Extract MSYS
 curl http://mirrors.enigma-dev.org/distrib/msys2-x86_64-latest.tar.xz -o "%TMP%\msys.xz"
@@ -30,11 +30,11 @@ cmd /c C:\msys64\msys2_shell.cmd -defterm -no-start -c "pacman -Scc --noconfirm"
 ::cmd /c C:\msys64\msys2_shell.cmd -defterm -no-start -c "git clone https://github.com/enigma-dev/enigma-dev.git C:/enigma-dev"
 
 ::Download and install LGM
-::curl http://mirrors.enigma-dev.org/LGM-1.0.msi -o "%TMP%\LGM.msi"
-::msiexec.exe /i "%TMP%\LGM.msi" INSTALLDIR="C:\enigma-dev" /QN /L*V "%TMP%/idgaf.log"
+curl http://mirrors.enigma-dev.org/LGM-1.0.msi -o "%TMP%\LGM.msi"
+msiexec.exe /i "%TMP%\LGM.msi" INSTALLDIR="C:\enigma-dev" /QN /L*V "%TMP%/idgaf.log"
 
 ::Build emake
-::cmd /c C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -c "cd C:/enigma-dev && make all -j2"
+cmd /c C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -c "cd C:/enigma-dev && make emake -j2"
 
 ::Build Installer
 ::"%TMP%\nsis-binary-7208-3\Bin\makensis" /V4 "C:/enigma-dev/enigma.nsi"

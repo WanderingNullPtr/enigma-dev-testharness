@@ -75,9 +75,7 @@ jobs:
       displayName: Install Dependencies
     
     - script: |
-        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "sed -i 's/\"bcrypt\"/-lbcrypt/g' $MINGW_PREFIX/lib/pkgconfig/absl_random_internal_seed_material.pc && \
-        sed -i 's/\"dbghelp\"/-ldbghelp/g' $MINGW_PREFIX/lib/pkgconfig/absl_symbolize.pc && \
-        sed -i 's/\"advapi32\"/-ladvapi32/g' $MINGW_PREFIX/lib/pkgconfig/absl_base.pc"
+        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "sed -i 's/\"bcrypt\"/-lbcrypt/g' $MINGW_PREFIX/lib/pkgconfig/absl_random_internal_seed_material.pc && sed -i 's/\"dbghelp\"/-ldbghelp/g' $MINGW_PREFIX/lib/pkgconfig/absl_symbolize.pc && sed -i 's/\"advapi32\"/-ladvapi32/g' $MINGW_PREFIX/lib/pkgconfig/absl_base.pc"
       displayName: Patch Abseil pc
 
     - script: |
