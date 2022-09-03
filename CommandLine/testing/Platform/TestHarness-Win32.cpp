@@ -269,6 +269,7 @@ class Win32_TestHarness final: public TestHarness {
       TerminateProcess(process_info->pi.hProcess,-1);
       std::cerr << "Game still running; killed" << std::endl;
     }
+    std::cerr<<"TRACE LINE Harness dtor\n";
     gather_coverage(test_config);
     delete process_info;
   }
@@ -397,13 +398,14 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     }
     return nullptr;
   }
-
+  std::cerr<<"TRACE LINE BEFORE THREAD STARTS\n";
   ProcessData* lacPprocess =  new ProcessData();
 
   if(!lacPprocess->CreateGameProc(out)){
         std::cerr<<"Failed to launch\n";
         return nullptr;
   }
+  std::cerr<<"TRACE LINE !!AFTER!! THREAD STARTS\n";
   Sleep(5000); // Give the window 5 seconds to load and display.
 
   for (int i = 0; i < 50; ++i) {  // Try for over ten seconds to grab the window
