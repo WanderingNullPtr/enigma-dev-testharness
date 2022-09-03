@@ -93,7 +93,7 @@ void CaptureStdOut( const HANDLE stdOut) {
   return;
 }
 class ProcessData{                      // A class to manage process handle closing for normal and harness attached processes seperately
-  bool islac=false,share_log=false;
+  bool share_log=false;
   HANDLE childStd_Out_Wr = NULL;
   HANDLE childStd_Out_Rd = NULL;
   string game_name;
@@ -123,13 +123,10 @@ class ProcessData{                      // A class to manage process handle clos
   public:
   PROCESS_INFORMATION pi;
   STARTUPINFO si;
-  ProcessData(bool lacflag, bool shareflag):islac(lacflag), share_log(shareflag) {}  //Overload for use in Launch and Attach block
   ProcessData() {}
   ~ProcessData(){                       //If islac == true, then the process handles (hProcess, hThread) needs to be closed explicitly by the harness when it gets destroyed
-    if(!islac){
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-    }
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
     if(share_log){
       CreateShellProc_Wait("./share_logs.sh ");;
     }
@@ -141,6 +138,7 @@ class ProcessData{                      // A class to manage process handle clos
   }
   bool CreateGameProc(string out) {
     meminit(true);
+    share_log = true;
     if(!CreateProcess(out.c_str(),&out[0],NULL,NULL,TRUE,0,NULL,NULL,&si,&pi))
       return false;
     CloseHandle(childStd_Out_Wr);
@@ -271,8 +269,6 @@ class Win32_TestHarness final: public TestHarness {
       TerminateProcess(process_info->pi.hProcess,-1);
       std::cerr << "Game still running; killed" << std::endl;
     }
-    CloseHandle(process_info->pi.hProcess);                          // Explicitly close process handles for harness attached launches
-    CloseHandle(process_info->pi.hThread);
     gather_coverage(test_config);
     delete process_info;
   }
@@ -347,7 +343,7 @@ void gather_coverage(const TestConfig &config) {
   string out_file = "--output-file=coverage_" + to_string(test_num) + ".info";
 
   string lcovArgs =
-    "l90cov"
+    "lcov"
     " --quiet"
     " --no-external"
     " --base-directory=ENIGMAsystem/SHELL/"
@@ -402,7 +398,7 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     return nullptr;
   }
 
-  ProcessData* lacPprocess =  new ProcessData(true,true);  // Special process, have to close handles manually
+  ProcessData* lacPprocess =  new ProcessData();
 
   if(!lacPprocess->CreateGameProc(out)){
         std::cerr<<"Failed to launch\n";
@@ -445,7 +441,7 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
     return ErrorCodes::BUILD_FAILED;
   }
 
-  ProcessData rtcProcess(false,true);
+  ProcessData rtcProcess;
   char currentdir[MAX_PATH];
   GetCurrentDirectory(MAX_PATH,currentdir);                        // Store current working directory to switch back to later
   SetCurrentDirectory(game.substr(0, game.find_last_of("\\/")).c_str());              //Set current directory to the game's dir
