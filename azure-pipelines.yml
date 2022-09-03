@@ -51,7 +51,7 @@ jobs:
     - task: PublishBuildArtifacts@1
       displayName: 'Push Build Artifacts'
       inputs:
-        pathtoPublish: 'test-harness-out\'
+        pathtoPublish: 'test-harness-out/'
       condition: always()
 
 - job: TestHarnessWindows
