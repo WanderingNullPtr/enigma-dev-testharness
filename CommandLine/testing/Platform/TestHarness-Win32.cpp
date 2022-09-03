@@ -128,7 +128,7 @@ class ProcessData{                      // A class to manage process handle clos
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     if(share_log){
-      CreateShellProc_Wait("./share_logs.sh ");;
+      CreateShellProc_Wait("mv \"/tmp/enigma_game.log\" test-harness-out/");;
     }
   }
   void CaptureThread(){
@@ -343,7 +343,7 @@ void gather_coverage(const TestConfig &config) {
   string out_file = "--output-file=coverage_" + to_string(test_num) + ".info";
 
   string lcovArgs =
-    "l90cov"
+    "lcov"
     " --quiet"
     " --no-external"
     " --base-directory=ENIGMAsystem/SHELL/"

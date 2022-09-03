@@ -83,7 +83,7 @@ function loader(){
     
       for(let ii = 0; ii < testcase.configpool.length; ii++){
         img = testsuite.name == "Regression" ?
-              `<img src="enigma_${testcase.game}${testcase.configpool[ii]}.png" width="200">`
+              `<img src="enigma_${testcase.game}${testcase.configpool[ii]}.png" alt="Image Not Found" width="200">`
               : ``;
         logs = testcase.game == "draw_test" ?
         `<object data="${testcase.game}${testcase.configpool[ii]}/enigma_compile.log" width="200"></object>
