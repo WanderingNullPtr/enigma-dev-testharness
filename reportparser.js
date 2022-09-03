@@ -1,4 +1,4 @@
-function getattrs(xmlElement,attrparam) {
+function getAttrs(xmlElement,attrparam) {
   let res = {};
   for(let attr_i = 0; attr_i < attrparam.length ; attr_i++) {
     if(xmlElement.hasAttribute(attrparam[attr_i])) { //skip attributes which are not present
@@ -20,13 +20,15 @@ function getTrace(failMessage) {
   }
 }
 function removeTrace(failMessage) {
+  if (!getTrace(failMessage))
+    return failMessage;
   return failMessage.substring( 0 , failMessage.indexOf("Google Test trace:")-1);
 }
 function loader(){
   var reportParser = new DOMParser();
   var reportXML = reportParser.parseFromString( document.getElementById( "testreportXML" ).innerHTML, "text/xml" )
                   .getElementsByTagName("testsuites")[0];
-  var testharness = getattrs(reportXML,["tests","failures","disabled"]);
+  var testharness = getAttrs(reportXML,["tests","failures","disabled"]);
   
   const testharness_template = `<div id = "testsuites_cont">
   <div id = "result">
@@ -45,7 +47,7 @@ function loader(){
   var testsuitesXML = reportXML.getElementsByTagName("testsuite");
 
   for(let i = 0; i < testsuitesXML.length; i++){
-    var testsuite = getattrs(testsuitesXML[i],["name","tests","failures","disabled","skipped"]);
+    var testsuite = getAttrs(testsuitesXML[i],["name","tests","failures","disabled","skipped"]);
 
     const testsuite_template = `<li><div>
     <div><span>${testsuite.failures?"&#10060":"&#9989;"}</span>
@@ -62,7 +64,7 @@ function loader(){
     var testcasesXML = testsuitesXML[i].getElementsByTagName("testcase");
 
     for(let j = 0; j < testcasesXML.length; j++){
-      var testcase = getattrs(testcasesXML[j],["name","value_param"]);
+      var testcase = getAttrs(testcasesXML[j],["name","value_param"]);
       testcase.configpool = testcasesXML[j].getElementsByTagName("properties")[0].getElementsByTagName("property")[0].getAttribute("value").split(",");
       //set game name seperately for parameterized tests and normal tests
       testcase.game = testcasesXML[j].hasAttribute("value_param")
@@ -86,10 +88,10 @@ function loader(){
               `<img src="enigma_${testcase.game}${testcase.configpool[ii]}.png" alt="Image Not Found" width="200">`
               : ``;
         logs = 
-        `<a href="${testcase.game}${testcase.configpool[ii]}/enigma_compile.log" width="200">enigma_compile.log</a>
-        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_compiler.log" width="200">enigma_compiler.log</a>
-        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_libegm.log" width="200">enigma_libegm.log</a>
-        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_game.log" width="200">enigma_game.log</a>`;
+        `<a href="${testcase.game}${testcase.configpool[ii]}/enigma_compile.log" target="_blank" rel="noopener noreferrer" width="200">enigma_compile.log</a>
+        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_compiler.log" target="_blank" rel="noopener noreferrer" width="200">enigma_compiler.log</a>
+        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_libegm.log" target="_blank" rel="noopener noreferrer" width="200">enigma_libegm.log</a>
+        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_game.log" target="_blank" rel="noopener noreferrer" width="200">enigma_game.log</a>`;
                                 
         config_template = `<li><div class="${testsuite.name}">
         <div>${testcase.configpool[ii]}</div>
@@ -101,14 +103,13 @@ function loader(){
       }
 
       for(let k = 0; k < failureXML.length; k++) {
-        var failure = getattrs(failureXML[k],["message"]);
+        var failure = getAttrs(failureXML[k],["message"]);
         failure.trace = getTrace(failure.message);
-        if (!failure.trace.length){
-          let fail_template = `<li><div><b>Failure: </b><pre>${failure.message}<pre></div></li>`;
+        let fail_template = `<li><div><b>Failure: </b><pre>${removeTrace(failure.message)}<pre></div></li>`;
+        if (!failure.trace){
           document.getElementById(`noconfigfails_${i}_${j}`).insertAdjacentHTML("beforeend", fail_template);
         }
         else {
-          let fail_template = `<li><div><b>Failure: </b><pre>${removeTrace(failure.message)}</pre></div></li>`;
           document.getElementById(`${testcase.game}_${failure.trace}`).insertAdjacentHTML("beforeend",fail_template);
         }
       }

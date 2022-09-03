@@ -2,6 +2,10 @@
 * {
   font-family: "Titillium Web",sans-serif;
 }
+a {
+  color : blue;
+  text-decoration: none;
+}
 div {
   padding: 0px;
   padding-bottom: 0;

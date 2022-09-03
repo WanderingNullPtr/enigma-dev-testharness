@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <windows.h>
+
 std::vector<TestConfig> GetValidConfigs(bool platforms, bool graphics, bool audio, bool collisions, bool widgets, bool network) {
   std::vector<TestConfig> tcs;
   
@@ -130,7 +131,7 @@ class ProcessData{                      // A class to manage process handle clos
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     if(share_log){
-      CreateShellProc_Wait(("echo sharing game log && mv \"/tmp/enigma_game.log\" \"test-harness-out/"+logdir+"/enigma_game.log\"").c_str());;
+      CreateShellProc_Wait(("mv \"/tmp/enigma_game.log\" \"test-harness-out/"+logdir+"/enigma_game.log\"").c_str());;
     }
   }
   void CaptureThread(){
@@ -271,7 +272,6 @@ class Win32_TestHarness final: public TestHarness {
       TerminateProcess(process_info->pi.hProcess,-1);
       std::cerr << "Game still running; killed" << std::endl;
     }
-    std::cerr<<"TRACE LINE Harness dtor\n";
     gather_coverage(test_config);
     delete process_info;
   }
@@ -400,14 +400,11 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     return nullptr;
   }
 
-  std::cerr<<"TRACE LINE BEFORE THREAD STARTS\n";
-  ProcessData* lacPprocess =  new ProcessData(game.substr(game.find_last_of("\\/")+1)+tc.stringify());
+  ProcessData* lacPprocess =  new ProcessData(game.substr(game.find_last_of("\\/")+1,game.find_last_of("."))+tc.stringify());
 
   if(!lacPprocess->CreateGameProc(out)){
-        std::cerr<<"Failed to launch\n";
         return nullptr;
   }
-  std::cerr<<"TRACE LINE !!AFTER!! THREAD STARTS\n";
   Sleep(5000); // Give the window 5 seconds to load and display.
 
   for (int i = 0; i < 50; ++i) {  // Try for over ten seconds to grab the window
@@ -415,13 +412,12 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     unsigned long int pid;
     GetWindowThreadProcessId(win,&pid);
     if (pid == (lacPprocess->pi).dwProcessId){
-      //SetWindowPos(win,HWND_TOPMOST,0,0,0,0,SWP_NOSIZE|SWP_NOMOVE);                // TODO: Bring window to front after being created
           return std::unique_ptr<Win32_TestHarness>(
           new Win32_TestHarness(lacPprocess, win, tc));
     };
     Sleep(250);
   }
-  std::cerr<<"Did not get window\n";                // check if game failed to launch or did not get a window
+  // game failed to get a window
   return nullptr;
 }
 
