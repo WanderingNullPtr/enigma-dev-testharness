@@ -343,7 +343,7 @@ void gather_coverage(const TestConfig &config) {
   string out_file = "--output-file=coverage_" + to_string(test_num) + ".info";
 
   string lcovArgs =
-    "lcov"
+    "l90cov"
     " --quiet"
     " --no-external"
     " --base-directory=ENIGMAsystem/SHELL/"
