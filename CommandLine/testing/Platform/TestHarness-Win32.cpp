@@ -94,6 +94,7 @@ void CaptureStdOut( const HANDLE stdOut) {
 }
 class ProcessData{                      // A class to manage process handle closing for normal and harness attached processes seperately
   bool share_log=false;
+  string logdir;
   HANDLE childStd_Out_Wr = NULL;
   HANDLE childStd_Out_Rd = NULL;
   string game_name;
@@ -124,11 +125,12 @@ class ProcessData{                      // A class to manage process handle clos
   PROCESS_INFORMATION pi;
   STARTUPINFO si;
   ProcessData() {}
+  ProcessData(string arg) : logdir(arg) {}
   ~ProcessData(){                       //If islac == true, then the process handles (hProcess, hThread) needs to be closed explicitly by the harness when it gets destroyed
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
     if(share_log){
-      CreateShellProc_Wait("mv \"/tmp/enigma_game.log\" test-harness-out/");;
+      CreateShellProc_Wait(("echo sharing game log && mv \"/tmp/enigma_game.log\" \"test-harness-out/"+logdir+"/enigma_game.log\"").c_str());;
     }
   }
   void CaptureThread(){
@@ -147,7 +149,7 @@ class ProcessData{                      // A class to manage process handle clos
   }
   bool CreateBuildProc(string emake,string arguments) {
     meminit(false);
-    if(!CreateProcess(emake.c_str(),&arguments[0],NULL,NULL,FALSE,0,NULL,NULL,&si,&pi))
+    if(!CreateProcess(emake.c_str(),&arguments[0],NULL,NULL,FALSE,CREATE_NEW_CONSOLE,NULL,NULL,&si,&pi))
       return false;
     return true;
   }
@@ -169,7 +171,7 @@ void CreateShellProc_Wait(string arguments) {
 }
 
 BOOL CALLBACK EnumWindowCallback(HWND winhnd, LPARAM lparam) {      //Callback function that checks if the PID we have matches the PID of the Top-level window being enumerated by EnumWindows
-    (*(hwndPid *)lparam).whandle=winhnd;
+    (*(hwndPid *)lparam).whandle = winhnd;
     unsigned long int proc_id;
 
     GetWindowThreadProcessId(winhnd, &proc_id);
@@ -327,7 +329,6 @@ int build_game(const string &game, const TestConfig &tc, const string &out) {
 }
 
 void gather_coverage(const TestConfig &config) {
-  return;
   SCOPED_TRACE(config.stringify());
   static int test_num = 0;
   test_num++;
@@ -398,8 +399,9 @@ TestHarness::launch_and_attach(const string &game, const TestConfig &tc) {
     }
     return nullptr;
   }
+
   std::cerr<<"TRACE LINE BEFORE THREAD STARTS\n";
-  ProcessData* lacPprocess =  new ProcessData();
+  ProcessData* lacPprocess =  new ProcessData(game.substr(game.find_last_of("\\/")+1)+tc.stringify());
 
   if(!lacPprocess->CreateGameProc(out)){
         std::cerr<<"Failed to launch\n";
@@ -443,7 +445,7 @@ int TestHarness::run_to_completion(const string &game, const TestConfig &tc) {
     return ErrorCodes::BUILD_FAILED;
   }
 
-  ProcessData rtcProcess;
+  ProcessData rtcProcess(game.substr(game.find_last_of("\\/")+1)+tc.stringify());
   char currentdir[MAX_PATH];
   GetCurrentDirectory(MAX_PATH,currentdir);                        // Store current working directory to switch back to later
   SetCurrentDirectory(game.substr(0, game.find_last_of("\\/")).c_str());              //Set current directory to the game's dir

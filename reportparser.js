@@ -85,12 +85,11 @@ function loader(){
         img = testsuite.name == "Regression" ?
               `<img src="enigma_${testcase.game}${testcase.configpool[ii]}.png" alt="Image Not Found" width="200">`
               : ``;
-        logs = testcase.game == "draw_test" ?
-        `<object data="${testcase.game}${testcase.configpool[ii]}/enigma_compile.log" width="200"></object>
-        <object data="${testcase.game}${testcase.configpool[ii]}/enigma_compiler.log" width="200"></object>
-        <object data="${testcase.game}${testcase.configpool[ii]}/enigma_libegm.log" width="200"></object>
-        <object data="${testcase.game}${testcase.configpool[ii]}/enigma_game.log" width="200"></object>`
-        :``;
+        logs = 
+        `<a href="${testcase.game}${testcase.configpool[ii]}/enigma_compile.log" width="200">enigma_compile.log</a>
+        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_compiler.log" width="200">enigma_compiler.log</a>
+        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_libegm.log" width="200">enigma_libegm.log</a>
+        <a href="${testcase.game}${testcase.configpool[ii]}/enigma_game.log" width="200">enigma_game.log</a>`;
                                 
         config_template = `<li><div class="${testsuite.name}">
         <div>${testcase.configpool[ii]}</div>
