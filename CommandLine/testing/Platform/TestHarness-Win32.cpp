@@ -135,7 +135,6 @@ class ProcessData{                      // A class to manage process handle clos
     }
   }
   void CaptureThread(){
-    std::cout<<childStd_Out_Rd<<'\n';
     std::thread capThread(CaptureStdOut,childStd_Out_Rd);
     capThread.detach();
   }

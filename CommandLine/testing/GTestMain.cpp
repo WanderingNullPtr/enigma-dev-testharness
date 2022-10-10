@@ -1,6 +1,5 @@
 #include "TestHarness.hpp"
 #include <gtest/gtest.h>
-#include <pugixml.hpp>
 
 using ::testing::EmptyTestEventListener;
 using ::testing::InitGoogleTest;
@@ -10,8 +9,6 @@ using ::testing::TestInfo;
 using ::testing::TestPartResult;
 using ::testing::TestSuite;
 using ::testing::UnitTest;
-
-using namespace pugi;
 
 class ConfigPrinter : public EmptyTestEventListener {
   void OnTestStart(const TestInfo& test_info) override{
