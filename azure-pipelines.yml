@@ -37,7 +37,7 @@ jobs:
       displayName: Test emake
    
     - script: |
-        ./CI/build_and_run_game.sh
+        ./CI/build_and_run_game.sh && ./generate_report.sh
       env:
         _IMGUR_CLIENT_ID: $(imgur_client_id)
         _BOT_COMMENT_TOKEN: $(bot_comment_token)
@@ -45,9 +45,6 @@ jobs:
         _CODECOV_UPLOAD_TOKEN: $(codecov_upload_token)
       displayName: Run Test Harness
       
-    - script: |
-        ./generate_report.sh
-      displayName: Generate HTML Report
     - task: PublishBuildArtifacts@1
       displayName: 'Push Build Artifacts'
       inputs:
@@ -91,30 +88,13 @@ jobs:
    
     - script: |
         C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "./CI/build_and_run_game.sh && ./generate_report.sh"
-#    - script: |
-#        C:\msys64\msys2_shell.cmd -defterm -no-start -c "pacman -Sy --noconfirm --needed git make rsync mingw-w64-x86_64-toolchain mingw-w64-x86_64-boost mingw-w64-x86_64-pugixml mingw-w64-x86_64-rapidjson mingw-w64-x86_64-yaml-cpp mingw-w64-x86_64-grpc mingw-w64-x86_64-protobuf mingw-w64-x86_64-glm mingw-w64-x86_64-libpng mingw-w64-x86_64-re2 mingw-w64-x86_64-box2d mingw-w64-x86_64-libffi mingw-w64-x86_64-glew mingw-w64-x86_64-openal mingw-w64-x86_64-dumb mingw-w64-x86_64-alure mingw-w64-x86_64-libmodplug mingw-w64-x86_64-libvorbis mingw-w64-x86_64-libogg mingw-w64-x86_64-flac mingw-w64-x86_64-mpg123 mingw-w64-x86_64-libsndfile mingw-w64-x86_64-libgme mingw-w64-x86_64-SDL2 mingw-w64-x86_64-SDL2_mixer mingw-w64-x86_64-libepoxy mingw-w64-x86_64-gtest lcov mingw-w64-x86_64-mesa"
-#      displayName: Install mingw stuff
-    #- script: |
-    #    C:\msys64\msys2_shell.cmd -defterm -no-start -c "pacman -U --noconfirm https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-llvm-13.0.0-1-any.pkg.tar.zst"
-    #- script: C:\msys64\msys2_shell.cmd -defterm -no-start -c "pacman -U --noconfirm https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-mesa-21.3.7-1-any.pkg.tar.zst"
-    #- script: .\enigma_bootstrap.bat
-    #  displayName: Bootstrap enigma
-#    - script: |
-#        
-#        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "cp $MINGW_PREFIX/bin/opengl32.dll $TEMP/ && cp $MINGW_PREFIX/bin/libgallium_wgl.dll $TEMP/"
-#        d3dconfig device force-warp=true
-#        d3dconfig apps --add c:\msys64\tmp\
-#      displayName: 'install pillow and install mesa'
-#
-#    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -c "cd C:/enigma-dev && mkdir test-harness-out && make all -j2"
-#      workingDirectory: C:\enigma-dev
-#      displayName: 'make runner'
-#
-#    - script: |
-#        C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "pacman -Q"
-#    - script: C:\msys64\msys2_shell.cmd -defterm -mingw64 -no-start -here -lc "./test-runner.exe --gtest_output=xml:test-harness-out/testout.xml"
-#      displayName: 'Run Test-Runner'
-#      workingDirectory: C:\enigma-dev
+      env:
+        _IMGUR_CLIENT_ID: $(imgur_client_id)
+        _BOT_COMMENT_TOKEN: $(bot_comment_token)
+        _BOT_PUSH_ON_GREEN_TOKEN: $(bot_push_on_green_token)
+        _CODECOV_UPLOAD_TOKEN: $(codecov_upload_token)
+      displayName: Run Test Harness
+
     - task: PublishBuildArtifacts@1
       displayName: 'Push Build Artifacts'
       inputs:
