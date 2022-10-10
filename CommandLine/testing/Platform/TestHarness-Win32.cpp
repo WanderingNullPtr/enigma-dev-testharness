@@ -149,7 +149,7 @@ class ProcessData{                      // A class to manage process handle clos
   }
   bool CreateBuildProc(string emake,string arguments) {
     meminit(false);
-    if(!CreateProcess(emake.c_str(),&arguments[0],NULL,NULL,FALSE,CREATE_NEW_CONSOLE,NULL,NULL,&si,&pi))
+    if(!CreateProcess(emake.c_str(),&arguments[0],NULL,NULL,FALSE,0,NULL,NULL,&si,&pi))
       return false;
     return true;
   }
